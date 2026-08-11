@@ -48,6 +48,13 @@ function showDashboard() {
     dateInput.value = todayStr;
   }
 
+  // --- এখানে কোডটুকু যোগ করুন ---
+  const opDateInput = document.getElementById("opFilterDate");
+  if (opDateInput && !opDateInput.value) {
+    opDateInput.value = todayStr;
+  }
+  // -----------------------------
+
   const options = {
     year: "numeric",
     month: "short",
@@ -335,12 +342,21 @@ async function fetchOnlinePaymentData() {
 
   tableBody.innerHTML = `<tr><td colspan="9" class="py-6 text-center text-slate-400 font-medium">Loading online payments...</td></tr>`;
 
+  const opFilterDate = document.getElementById("opFilterDate");
+  const selectedDate = opFilterDate ? opFilterDate.value : "";
+
   try {
-    const { data: payments, error: paymentError } = await supabaseClient
+    let query = supabaseClient
       .from("online_payments")
       .select("*")
       .order("date", { ascending: false });
 
+    // যদি তারিখ সিলেক্ট করা থাকে তবে ডেট অনুযায়ী ফিল্টার হবে
+    if (selectedDate) {
+      query = query.eq("date", selectedDate);
+    }
+
+    const { data: payments, error: paymentError } = await query;
     if (paymentError) throw paymentError;
 
     const { data: users, error: userError } = await supabaseClient
@@ -348,71 +364,93 @@ async function fetchOnlinePaymentData() {
       .select("*");
     if (userError) throw userError;
 
-    tableBody.innerHTML = "";
-
-    if (!payments || payments.length === 0) {
-      tableBody.innerHTML = `<tr><td colspan="9" class="py-6 text-center text-slate-400 font-medium">No records found.</td></tr>`;
-      document.getElementById("opTotalSuccessAmount").textContent = "৳0.00";
-      document.getElementById("opTotalPendingAmount").textContent = "৳0.00";
-      document.getElementById("opSuccessCount").textContent = "0";
-      return;
-    }
-
-    let totalSuccessAmount = 0;
-    let totalPendingAmount = 0;
-    let successCount = 0;
-
-    payments.forEach((payment) => {
-      const amount = parseFloat(payment.amount || 0);
-      if ((payment.status || "").toLowerCase() === "success") {
-        totalSuccessAmount += amount;
-        successCount++;
-      } else {
-        totalPendingAmount += amount;
-      }
-    });
-
-    document.getElementById("opTotalSuccessAmount").textContent =
-      `৳${totalSuccessAmount.toFixed(2)}`;
-    document.getElementById("opTotalPendingAmount").textContent =
-      `৳${totalPendingAmount.toFixed(2)}`;
-    document.getElementById("opSuccessCount").textContent = successCount;
-
-    payments.forEach((payment, index) => {
-      const user = users.find((u) => u.id === payment.user_id) || {};
-      const userName = user.full_name || user.username || "Unknown User";
-      const rowBg = index % 2 === 0 ? "bg-white" : "bg-slate-50/80";
-
-      const transactionNumberText = payment.transaction_number
-        ? payment.transaction_number
-        : "-";
-
-      let statusBadge =
-        payment.status.toLowerCase() === "success"
-          ? `<span class="px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-lg text-xs font-extrabold">Success</span>`
-          : `<span class="px-2.5 py-1 bg-amber-100 text-amber-800 rounded-lg text-xs font-extrabold">Pending</span>`;
-
-      let actionBtn =
-        payment.status.toLowerCase() === "success"
-          ? `<button onclick="revertOnlinePayment('${payment.id}')" class="px-3 py-1.5 bg-amber-50 hover:bg-amber-600 text-amber-600 hover:text-white rounded-xl text-xs font-extrabold transition">Revert</button>`
-          : `<button onclick="confirmOnlinePayment('${payment.id}')" class="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-600 text-emerald-600 hover:text-white rounded-xl text-xs font-extrabold transition">Confirm Pay</button>`;
-
-      tableBody.innerHTML += `
-        <tr class="${rowBg} border-b border-slate-100">
-          <td class="py-4 px-4 font-bold text-slate-800">${userName}</td>
-          <td class="py-4 px-4 text-slate-600 uppercase font-semibold">${payment.gateway || "N/A"}</td>
-          <td class="py-4 px-4 text-slate-600 font-semibold">${payment.payment_number || "N/A"}</td>
-          <td class="py-4 px-4"><span class="text-xs font-extrabold text-purple-700 bg-purple-50 px-3 py-1.5 rounded-xl">${payment.work_details || "N/A"}</span></td>
-          <td class="py-4 px-4 font-extrabold text-emerald-600">৳${parseFloat(payment.amount || 0).toFixed(2)}</td>
-          <td class="py-4 px-4 text-slate-600 text-sm">${payment.date}</td>
-          <td class="py-4 px-4">${statusBadge}</td>
-          <td class="py-4 px-4 font-bold text-slate-700">${transactionNumberText}</td>
-          <td class="py-4 px-4 text-center">${actionBtn}</td>
-        </tr>`;
-    });
+    renderOnlinePaymentTable(payments, users);
   } catch (err) {
     tableBody.innerHTML = `<tr><td colspan="9" class="py-6 text-center text-rose-500 font-medium">Error: ${err.message}</td></tr>`;
     showToast("Error: " + err.message, "error");
+  }
+}
+
+function renderOnlinePaymentTable(payments, users) {
+  const tableBody = document.getElementById("onlinePaymentTableBody");
+  if (!tableBody) return;
+
+  tableBody.innerHTML = "";
+
+  if (!payments || payments.length === 0) {
+    tableBody.innerHTML = `<tr><td colspan="9" class="py-6 text-center text-slate-400 font-medium">No records found for this date.</td></tr>`;
+    document.getElementById("opTotalSuccessAmount").textContent = "৳0.00";
+    document.getElementById("opTotalPendingAmount").textContent = "৳0.00";
+    document.getElementById("opSuccessCount").textContent = "0";
+    return;
+  }
+
+  let totalSuccessAmount = 0;
+  let totalPendingAmount = 0;
+  let successCount = 0;
+
+  payments.forEach((payment) => {
+    const amount = parseFloat(payment.amount || 0);
+    if ((payment.status || "").toLowerCase() === "success") {
+      totalSuccessAmount += amount;
+      successCount++;
+    } else {
+      totalPendingAmount += amount;
+    }
+  });
+
+  document.getElementById("opTotalSuccessAmount").textContent =
+    `৳${totalSuccessAmount.toFixed(2)}`;
+  document.getElementById("opTotalPendingAmount").textContent =
+    `৳${totalPendingAmount.toFixed(2)}`;
+  document.getElementById("opSuccessCount").textContent = successCount;
+
+  payments.forEach((payment, index) => {
+    const user = users.find((u) => u.id === payment.user_id) || {};
+    const userName = user.full_name || user.username || "Unknown User";
+    const rowBg = index % 2 === 0 ? "bg-white" : "bg-slate-50/80";
+
+    const transactionNumberText = payment.transaction_number
+      ? payment.transaction_number
+      : "-";
+
+    let statusBadge =
+      payment.status.toLowerCase() === "success"
+        ? `<span class="px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-lg text-xs font-extrabold">Success</span>`
+        : `<span class="px-2.5 py-1 bg-amber-100 text-amber-800 rounded-lg text-xs font-extrabold">Pending</span>`;
+
+    let actionBtn =
+      payment.status.toLowerCase() === "success"
+        ? `<button onclick="revertOnlinePayment('${payment.id}')" class="px-3 py-1.5 bg-amber-50 hover:bg-amber-600 text-amber-600 hover:text-white rounded-xl text-xs font-extrabold transition cursor-pointer">Revert</button>`
+        : `<button onclick="confirmOnlinePayment('${payment.id}')" class="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-600 text-emerald-600 hover:text-white rounded-xl text-xs font-extrabold transition cursor-pointer">Confirm Pay</button>`;
+
+    tableBody.innerHTML += `
+      <tr class="${rowBg} border-b border-slate-100">
+        <td class="py-4 px-4 font-bold text-slate-800">${userName}</td>
+        <td class="py-4 px-4 text-slate-600 uppercase font-semibold">${payment.gateway || "N/A"}</td>
+        <td class="py-4 px-4 text-slate-600 font-semibold">${payment.payment_number || "N/A"}</td>
+        <td class="py-4 px-4"><span class="text-xs font-extrabold text-purple-700 bg-purple-50 px-3 py-1.5 rounded-xl">${payment.work_details || "N/A"}</span></td>
+        <td class="py-4 px-4 font-extrabold text-emerald-600">৳${parseFloat(payment.amount || 0).toFixed(2)}</td>
+        <td class="py-4 px-4 text-slate-600 text-sm">${payment.date}</td>
+        <td class="py-4 px-4">${statusBadge}</td>
+        <td class="py-4 px-4 font-bold text-slate-700">${transactionNumberText}</td>
+        <td class="py-4 px-4 text-center">${actionBtn}</td>
+      </tr>`;
+  });
+}
+
+async function revertOnlinePayment(paymentId) {
+  try {
+    const { error } = await supabaseClient
+      .from("online_payments")
+      .update({ status: "pending" })
+      .eq("id", paymentId);
+    if (error) throw error;
+    showToast("Payment reverted to pending successfully!", "success");
+    fetchOnlinePaymentData();
+    if (typeof fetchMemberData === "function") fetchMemberData();
+  } catch (err) {
+    showToast("Failed to revert payment: " + err.message, "error");
   }
 }
 
