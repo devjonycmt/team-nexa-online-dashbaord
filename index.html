@@ -1,0 +1,765 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Dashboard - Supabase</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Supabase JS Client CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  </head>
+  <body class="bg-gray-100 font-sans">
+    <!-- LOGIN SCREEN -->
+    <div
+      id="loginSection"
+      class="flex items-center justify-center min-h-screen bg-gray-900 p-4"
+    >
+      <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-sm">
+        <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">
+          Admin Login
+        </h2>
+        <div
+          id="loginError"
+          class="hidden mb-4 p-2 bg-red-100 text-red-600 text-sm rounded text-center"
+        ></div>
+        <div class="mb-4">
+          <label class="block text-gray-700 text-sm font-bold mb-2"
+            >Username</label
+          >
+          <input
+            type="text"
+            id="username"
+            class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Enter username"
+          />
+        </div>
+        <div class="mb-6">
+          <label class="block text-gray-700 text-sm font-bold mb-2"
+            >Password</label
+          >
+          <input
+            type="password"
+            id="password"
+            class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Enter password"
+          />
+        </div>
+        <button
+          onclick="handleLogin()"
+          class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition duration-200 font-semibold cursor-pointer"
+        >
+          Login
+        </button>
+      </div>
+    </div>
+
+    <!-- MAIN DASHBOARD (Hidden initially) -->
+    <div
+      id="dashboardSection"
+      class="hidden flex h-screen bg-gray-100 relative overflow-hidden"
+    >
+      <!-- Mobile Sidebar Overlay -->
+      <div
+        id="sidebarOverlay"
+        onclick="toggleSidebar()"
+        class="fixed inset-0 bg-black/50 z-20 hidden md:hidden"
+      ></div>
+
+      <!-- Sidebar -->
+      <div
+        id="sidebar"
+        class="fixed inset-y-0 left-0 z-30 w-64 bg-gray-900 text-white flex flex-col transform -translate-x-full md:translate-x-0 md:static transition-transform duration-300 ease-in-out"
+      >
+        <div
+          class="p-5 text-2xl font-bold tracking-wider border-b border-gray-800 flex items-center justify-between"
+        >
+          <span>Admin Panel</span>
+          <button
+            onclick="toggleSidebar()"
+            class="md:hidden text-gray-400 hover:text-white focus:outline-none"
+          >
+            <svg
+              class="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              ></path>
+            </svg>
+          </button>
+        </div>
+        <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
+          <button
+            onclick="
+              switchTab('dashboard');
+              closeSidebarOnMobile();
+            "
+            id="nav-dashboard"
+            class="w-full text-left px-4 py-2.5 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white font-medium transition cursor-pointer"
+          >
+            Dashboard
+          </button>
+          <button
+            onclick="
+              switchTab('members');
+              closeSidebarOnMobile();
+            "
+            id="nav-members"
+            class="w-full text-left px-4 py-2.5 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white font-medium transition cursor-pointer"
+          >
+            Member Accounts
+          </button>
+          <button
+            onclick="
+              switchTab('online-payments');
+              closeSidebarOnMobile();
+            "
+            id="nav-online-payments"
+            class="w-full text-left px-4 py-2.5 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white font-medium transition cursor-pointer"
+          >
+            Online Payments
+          </button>
+        </nav>
+        <div class="p-4 border-t border-gray-800">
+          <button
+            onclick="handleLogout()"
+            class="w-full bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition font-semibold cursor-pointer"
+          >
+            Logout
+          </button>
+        </div>
+      </div>
+
+      <!-- Content Area -->
+      <div class="flex-1 flex flex-col overflow-hidden w-full">
+        <!-- Top Header -->
+        <header
+          class="bg-white shadow-sm h-16 flex items-center justify-between px-4 md:px-8 z-10"
+        >
+          <div class="flex items-center space-x-3 md:space-x-4">
+            <button
+              onclick="toggleSidebar()"
+              class="md:hidden text-gray-700 hover:text-gray-900 focus:outline-none p-1"
+            >
+              <svg
+                class="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M4 6h16M4 12h16M4 18h16"
+                ></path>
+              </svg>
+            </button>
+            <h1
+              id="pageTitle"
+              class="text-base md:text-xl font-bold text-gray-800 truncate"
+            >
+              Dashboard
+            </h1>
+            <span
+              id="currentDateDisplay"
+              class="text-xs font-semibold bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full border border-blue-100 hidden lg:inline-block"
+            ></span>
+          </div>
+
+          <div class="flex items-center space-x-2">
+            <label
+              class="text-xs md:text-sm font-semibold text-gray-600 hidden sm:inline-block"
+              >Filter by Date:</label
+            >
+            <input
+              type="date"
+              id="filterDate"
+              onchange="fetchMemberData()"
+              class="px-2 md:px-3 py-1.5 border rounded-lg text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
+            />
+          </div>
+        </header>
+
+        <!-- Main Content Container -->
+        <main
+          class="flex-1 overflow-x-auto overflow-y-auto p-4 md:p-8 bg-gray-50"
+        >
+          <!-- TAB 1: DASHBOARD OVERVIEW -->
+          <div id="tab-dashboard" class="space-y-6">
+            <div class="flex items-center justify-between">
+              <h2
+                class="text-base md:text-lg font-extrabold text-slate-800 flex items-center space-x-2"
+              >
+                <span
+                  class="w-3 h-3 rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 inline-block"
+                ></span>
+                <span>Selected Date Report Summary</span>
+              </h2>
+              <span
+                class="text-xs text-indigo-600 font-semibold bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100"
+                >Live Analytics</span
+              >
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <!-- Meta AI Card -->
+              <div
+                class="bg-gradient-to-br from-purple-600 via-violet-600 to-purple-700 p-6 rounded-2xl shadow-lg shadow-purple-500/20 text-white relative overflow-hidden group"
+              >
+                <div
+                  class="flex items-center justify-between mb-4 relative z-10"
+                >
+                  <div
+                    class="w-12 h-12 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center text-white"
+                  >
+                    <svg
+                      class="w-6 h-6"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"
+                      />
+                    </svg>
+                  </div>
+                  <span
+                    class="text-[11px] font-bold px-2.5 py-1 bg-white/20 backdrop-blur-md rounded-full uppercase tracking-wider"
+                    >Meta AI</span
+                  >
+                </div>
+                <h3
+                  class="text-xs font-bold text-purple-100 uppercase tracking-wider relative z-10"
+                >
+                  Meta AI Accounts
+                </h3>
+                <p
+                  id="selectedMeta"
+                  class="text-4xl font-extrabold mt-2 text-white relative z-10"
+                >
+                  0
+                </p>
+              </div>
+
+              <!-- Total Members Card -->
+              <div
+                class="bg-gradient-to-br from-emerald-600 via-teal-600 to-emerald-700 p-6 rounded-2xl shadow-lg shadow-emerald-500/20 text-white relative overflow-hidden group"
+              >
+                <div
+                  class="flex items-center justify-between mb-4 relative z-10"
+                >
+                  <div
+                    class="w-12 h-12 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center text-white"
+                  >
+                    <svg
+                      class="w-6 h-6"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                      />
+                    </svg>
+                  </div>
+                  <span
+                    class="text-[11px] font-bold px-2.5 py-1 bg-white/20 backdrop-blur-md rounded-full uppercase tracking-wider"
+                    >Total</span
+                  >
+                </div>
+                <h3
+                  class="text-xs font-bold text-emerald-100 uppercase tracking-wider relative z-10"
+                >
+                  Total Members
+                </h3>
+                <p
+                  id="totalMembers"
+                  class="text-4xl font-extrabold mt-2 text-white relative z-10"
+                >
+                  0
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 2: MEMBER ACCOUNTS TABLE -->
+          <div id="tab-members" class="hidden">
+            <div
+              class="bg-white rounded-2xl shadow-xl border border-indigo-100 overflow-hidden"
+            >
+              <!-- Summary Cards Container (5 Cards) -->
+              <div
+                class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6"
+              >
+                <!-- Total Account Card -->
+                <div
+                  class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between"
+                >
+                  <div>
+                    <p
+                      class="text-xs font-bold text-slate-400 uppercase tracking-wider"
+                    >
+                      Total Work
+                    </p>
+                    <h3
+                      id="cardTotalAccount"
+                      class="text-2xl font-extrabold text-slate-800 mt-1"
+                    >
+                      0
+                    </h3>
+                  </div>
+                  <div
+                    class="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold text-lg"
+                  >
+                    📁
+                  </div>
+                </div>
+
+                <!-- Total Good Card -->
+                <div
+                  class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between"
+                >
+                  <div>
+                    <p
+                      class="text-xs font-bold text-slate-400 uppercase tracking-wider"
+                    >
+                      Total Good
+                    </p>
+                    <h3
+                      id="cardTotalGood"
+                      class="text-2xl font-extrabold text-emerald-600 mt-1"
+                    >
+                      0
+                    </h3>
+                  </div>
+                  <div
+                    class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-lg"
+                  >
+                    ✅
+                  </div>
+                </div>
+
+                <!-- Total Bad Card -->
+                <div
+                  class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between"
+                >
+                  <div>
+                    <p
+                      class="text-xs font-bold text-slate-400 uppercase tracking-wider"
+                    >
+                      Total Bad
+                    </p>
+                    <h3
+                      id="cardTotalBad"
+                      class="text-2xl font-extrabold text-rose-600 mt-1"
+                    >
+                      0
+                    </h3>
+                  </div>
+                  <div
+                    class="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold text-lg"
+                  >
+                    ❌
+                  </div>
+                </div>
+
+                <!-- Total Pending Card -->
+                <div
+                  class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between"
+                >
+                  <div>
+                    <p
+                      class="text-xs font-bold text-slate-400 uppercase tracking-wider"
+                    >
+                      Total Pending
+                    </p>
+                    <h3
+                      id="cardTotalPending"
+                      class="text-2xl font-extrabold text-amber-600 mt-1"
+                    >
+                      0
+                    </h3>
+                  </div>
+                  <div
+                    class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-lg"
+                  >
+                    ⏳
+                  </div>
+                </div>
+
+                <!-- Total Amount Card -->
+                <div
+                  class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between"
+                >
+                  <div>
+                    <p
+                      class="text-xs font-bold text-slate-400 uppercase tracking-wider"
+                    >
+                      Total Amount
+                    </p>
+                    <h3
+                      id="cardTotalAmount"
+                      class="text-2xl font-extrabold text-emerald-600 mt-1"
+                    >
+                      ৳0.00
+                    </h3>
+                  </div>
+                  <div
+                    class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-lg"
+                  >
+                    💵
+                  </div>
+                </div>
+              </div>
+              <div
+                class="p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gradient-to-r from-indigo-50/60 via-purple-50/40 to-pink-50/60"
+              >
+                <div>
+                  <h3
+                    class="text-base font-extrabold text-slate-800 flex items-center space-x-2"
+                  >
+                    <span
+                      class="w-3 h-3 rounded-full bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 inline-block"
+                    ></span>
+                    <span>Members Report List (For Selected Date)</span>
+                  </h3>
+                  <p class="text-xs text-slate-500 mt-0.5">
+                    Detailed analytics and platform performance breakdown
+                  </p>
+                </div>
+                <button
+                  onclick="fetchMemberData()"
+                  class="flex items-center space-x-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition shadow-md shadow-indigo-500/25 cursor-pointer"
+                >
+                  <span>Refresh Data</span>
+                </button>
+              </div>
+
+              <!-- Table Container -->
+              <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse min-w-[700px]">
+                  <thead>
+                    <tr
+                      class="bg-slate-50 text-slate-600 text-[11px] uppercase font-bold tracking-wider border-b border-slate-200"
+                    >
+                      <th class="py-4 px-6">Member Name</th>
+                      <th class="py-4 px-6 text-purple-600 font-extrabold">
+                        Meta AI
+                      </th>
+                      <th class="py-4 px-6 text-emerald-600 font-extrabold">
+                        Total Amount
+                      </th>
+                      <th class="py-4 px-6 text-slate-700">Payment Status</th>
+                      <th class="py-4 px-6 text-center text-slate-700">
+                        Action
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody
+                    id="memberTableBody"
+                    class="divide-y divide-slate-100 text-sm text-slate-700"
+                  >
+                    <!-- Dynamic rows will load here -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 3: ONLINE PAYMENTS HISTORY -->
+          <div id="tab-online-payments" class="hidden space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div
+                class="bg-gradient-to-br from-emerald-500 to-teal-600 p-6 rounded-2xl shadow-lg text-white"
+              >
+                <h3
+                  class="text-xs font-bold uppercase tracking-wider text-emerald-100"
+                >
+                  Total Success Amount
+                </h3>
+                <p
+                  id="opTotalSuccessAmount"
+                  class="text-3xl font-extrabold mt-2"
+                >
+                  ৳0.00
+                </p>
+              </div>
+              <div
+                class="bg-gradient-to-br from-amber-500 to-orange-600 p-6 rounded-2xl shadow-lg text-white"
+              >
+                <h3
+                  class="text-xs font-bold uppercase tracking-wider text-amber-100"
+                >
+                  Pending Amount
+                </h3>
+                <p
+                  id="opTotalPendingAmount"
+                  class="text-3xl font-extrabold mt-2"
+                >
+                  ৳0.00
+                </p>
+              </div>
+              <div
+                class="bg-gradient-to-br from-indigo-500 to-blue-600 p-6 rounded-2xl shadow-lg text-white"
+              >
+                <h3
+                  class="text-xs font-bold uppercase tracking-wider text-indigo-100"
+                >
+                  Success Count
+                </h3>
+                <p id="opSuccessCount" class="text-3xl font-extrabold mt-2">
+                  0
+                </p>
+              </div>
+            </div>
+
+            <div
+              class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6"
+            >
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-bold text-slate-800">
+                  Online Payment History
+                </h3>
+                <button
+                  onclick="fetchOnlinePaymentData()"
+                  class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-600 text-indigo-600 hover:text-white rounded-xl text-xs font-extrabold transition cursor-pointer"
+                >
+                  Refresh
+                </button>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse min-w-[700px]">
+                  <thead>
+                    <tr
+                      class="text-left text-slate-400 font-bold text-xs uppercase border-b border-slate-100"
+                    >
+                      <th class="py-3 px-4">Member Name</th>
+                      <th class="py-3 px-4">Gateway</th>
+                      <th class="py-3 px-4">PAYMENT NUMBER</th>
+                      <th class="py-3 px-4">Work Details</th>
+                      <th class="py-3 px-4">Amount</th>
+                      <th class="py-3 px-4">Date</th>
+                      <th class="py-3 px-4">Status</th>
+                      <th class="py-3 px-4">Transaction Number</th>
+                      <th class="py-3 px-4 text-center">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="onlinePaymentTableBody">
+                    <tr>
+                      <td colspan="9" class="py-6 text-center text-slate-400">
+                        Loading online payments...
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <!-- View Report & History Modal -->
+    <div
+      id="viewModal"
+      class="fixed inset-0 bg-slate-950/60 backdrop-blur-xs hidden flex items-center justify-center z-50 p-4"
+    >
+      <div
+        class="bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-2xl overflow-hidden transform transition-all scale-95 opacity-0 duration-300"
+        id="viewModalContainer"
+      >
+        <div
+          class="p-6 bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 text-white flex justify-between items-center"
+        >
+          <div>
+            <h3
+              id="viewModalMemberName"
+              class="text-base font-extrabold flex items-center space-x-2"
+            >
+              <span>Member Work History & Reports</span>
+            </h3>
+            <p class="text-xs text-blue-100 mt-0.5">
+              Detailed list of all submitted reports by this user
+            </p>
+          </div>
+          <button
+            onclick="closeViewModal()"
+            class="w-8 h-8 rounded-full bg-white/25 hover:bg-white/40 flex items-center justify-center text-white transition cursor-pointer text-lg font-bold"
+          >
+            &times;
+          </button>
+        </div>
+
+        <div
+          class="p-6 space-y-4 max-h-[60vh] overflow-y-auto"
+          id="viewModalBodyContent"
+        ></div>
+
+        <div class="p-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+          <button
+            onclick="closeViewModal()"
+            class="px-5 py-2.5 rounded-xl text-xs font-bold bg-slate-200 text-slate-700 hover:bg-slate-300 transition cursor-pointer"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Action Modal (Audit) -->
+    <div
+      id="actionModal"
+      class="fixed inset-0 bg-slate-950/60 backdrop-blur-xs hidden flex items-center justify-center z-50 p-4"
+    >
+      <div
+        class="bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-xl overflow-hidden transform transition-all scale-95 opacity-0 duration-300"
+        id="modalContainer"
+      >
+        <div
+          class="p-6 bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 text-white flex justify-between items-center"
+        >
+          <div>
+            <h3
+              id="modalMemberName"
+              class="text-base font-extrabold flex items-center space-x-2"
+            >
+              <span>Member Audit & Performance</span>
+            </h3>
+            <p class="text-xs text-indigo-100 mt-0.5">
+              Input good accounts to automatically calculate bad accounts
+            </p>
+          </div>
+          <button
+            onclick="closeModal()"
+            class="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition cursor-pointer"
+          >
+            &times;
+          </button>
+        </div>
+
+        <div
+          class="p-6 space-y-4 max-h-[60vh] overflow-y-auto"
+          id="modalBodyContent"
+        ></div>
+
+        <div
+          class="p-4 bg-slate-50 border-t border-slate-100 flex justify-end space-x-3"
+        >
+          <button
+            onclick="closeModal()"
+            class="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200 transition cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            onclick="saveMemberAudit()"
+            class="px-5 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-indigo-600 to-violet-600 text-white hover:from-indigo-700 hover:to-violet-700 shadow-md shadow-indigo-500/25 transition cursor-pointer"
+          >
+            Save & Update
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Custom Payment Confirmation Modal -->
+    <div
+      id="customPayModal"
+      class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+    >
+      <div
+        class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl transform transition-all"
+      >
+        <h3 class="text-lg font-extrabold text-slate-800 mb-2">
+          Confirm Payment
+        </h3>
+        <p class="text-xs text-slate-500 mb-4">
+          Select the number you paid from or enter a custom number:
+        </p>
+
+        <div class="space-y-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1"
+              >Select Saved Number:</label
+            >
+            <select
+              id="modalPaySelect"
+              onchange="handlePaySelectChange(this.value)"
+              class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="">-- Choose a number --</option>
+              <option value="01775370439">01775370439 (bKash Personal)</option>
+              <option value="01324585848">01324585848 (bKash Personal)</option>
+              <option value="01533235544">01533235544 (bKash Personal)</option>
+              <option value="01533235544">01533235544 (Nagad Personal)</option>
+              <option value="01775370439">01775370439 (Nagad Personal)</option>
+              <option value="01324585848">01324585848 (Rocket Personal)</option>
+              <option value="01533235544">01533235544 (Rocket Personal)</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1"
+              >Transaction / Payment Number:</label
+            >
+            <input
+              type="text"
+              id="modalPayInput"
+              placeholder="Enter or select number"
+              class="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end space-x-2.5 mt-6">
+          <button
+            onclick="closeCustomPayModal()"
+            class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            id="modalConfirmBtn"
+            class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition cursor-pointer shadow-sm"
+          >
+            Confirm Pay
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div
+      id="toastContainer"
+      class="fixed top-5 right-5 z-[999999] flex flex-col gap-2.5 pointer-events-none"
+    ></div>
+    <script>
+      function toggleSidebar() {
+        const sidebar = document.getElementById("sidebar");
+        const overlay = document.getElementById("sidebarOverlay");
+        sidebar.classList.toggle("-translate-x-full");
+        overlay.classList.toggle("hidden");
+      }
+
+      function closeSidebarOnMobile() {
+        if (window.innerWidth < 768) {
+          toggleSidebar();
+        }
+      }
+    </script>
+
+    <script src="script.js"></script>
+  </body>
+</html>
