@@ -72,15 +72,18 @@ function switchTab(tabName) {
   const dashboardTab = document.getElementById("tab-dashboard");
   const membersTab = document.getElementById("tab-members");
   const onlinePaymentsTab = document.getElementById("tab-online-payments");
+  const settingsTab = document.getElementById("tab-settings"); // নতুন যোগ করুন
 
   const navDashboard = document.getElementById("nav-dashboard");
   const navMembers = document.getElementById("nav-members");
   const navOnlinePayments = document.getElementById("nav-online-payments");
+  const navSettings = document.getElementById("nav-settings"); // নতুন যোগ করুন
   const pageTitle = document.getElementById("pageTitle");
 
   if (dashboardTab) dashboardTab.classList.add("hidden");
   if (membersTab) membersTab.classList.add("hidden");
   if (onlinePaymentsTab) onlinePaymentsTab.classList.add("hidden");
+  if (settingsTab) settingsTab.classList.add("hidden"); // নতুন যোগ করুন
 
   const defaultNavClass =
     "w-full text-left px-4 py-2.5 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white font-medium transition cursor-pointer";
@@ -90,6 +93,7 @@ function switchTab(tabName) {
   if (navDashboard) navDashboard.className = defaultNavClass;
   if (navMembers) navMembers.className = defaultNavClass;
   if (navOnlinePayments) navOnlinePayments.className = defaultNavClass;
+  if (navSettings) navSettings.className = defaultNavClass; // নতুন যোগ করুন
 
   if (tabName === "dashboard" && dashboardTab) {
     dashboardTab.classList.remove("hidden");
@@ -105,6 +109,12 @@ function switchTab(tabName) {
     if (navOnlinePayments) navOnlinePayments.className = activeNavClass;
     if (pageTitle) pageTitle.textContent = "Online Payments Gateway";
     if (typeof fetchOnlinePaymentData === "function") fetchOnlinePaymentData();
+  } else if (tabName === "settings" && settingsTab) {
+    // নতুন যোগ করুন
+    settingsTab.classList.remove("hidden");
+    if (navSettings) navSettings.className = activeNavClass;
+    if (pageTitle) pageTitle.textContent = "Panel Settings";
+    if (typeof fetchSettings === "function") fetchSettings();
   }
 }
 
@@ -438,22 +448,6 @@ function renderOnlinePaymentTable(payments, users) {
       </tr>`;
   });
 }
-
-async function revertOnlinePayment(paymentId) {
-  try {
-    const { error } = await supabaseClient
-      .from("online_payments")
-      .update({ status: "pending" })
-      .eq("id", paymentId);
-    if (error) throw error;
-    showToast("Payment reverted to pending successfully!", "success");
-    fetchOnlinePaymentData();
-    if (typeof fetchMemberData === "function") fetchMemberData();
-  } catch (err) {
-    showToast("Failed to revert payment: " + err.message, "error");
-  }
-}
-
 async function revertOnlinePayment(paymentId) {
   try {
     const { error } = await supabaseClient
@@ -957,4 +951,51 @@ function showToast(message, type = "success") {
     toast.classList.add("translate-y-[-20px]", "opacity-0", "scale-95");
     setTimeout(() => toast.remove(), 300);
   }, 3000);
+}
+
+// প্যানেল সেটিংস লোড করা
+// script.js এ এই ফাংশনটি ব্যবহার করুন যাতে ডাটাবেস থেকে সঠিক স্ট্যাটাস লোড হয়
+async function fetchSettings() {
+  const { data, error } = await supabaseClient
+    .from("app_settings")
+    .select("*")
+    .eq("id", 1)
+    .single();
+
+  if (data) {
+    const btn = document.getElementById("panelToggleBtn");
+    // প্যানেল false থাকলে বাটন লাল দেখাবে (Offline), true থাকলে সবুজ (Active)
+    btn.textContent = data.panel_status ? "Turn Panel OFF" : "Turn Panel ON";
+    btn.className = data.panel_status
+      ? "px-6 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold transition cursor-pointer"
+      : "px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition cursor-pointer";
+
+    document.getElementById("offlineMsgInput").value = data.offline_message;
+  }
+}
+
+// প্যানেল অন/অফ করা
+async function togglePanelStatus() {
+  const { data } = await supabaseClient
+    .from("app_settings")
+    .select("panel_status")
+    .eq("id", 1)
+    .single();
+  const newStatus = !data.panel_status;
+  await supabaseClient
+    .from("app_settings")
+    .update({ panel_status: newStatus })
+    .eq("id", 1);
+  fetchSettings();
+  showToast("Status Updated!", "success");
+}
+
+// মেসেজ সেভ করা
+async function saveSettings() {
+  const msg = document.getElementById("offlineMsgInput").value;
+  await supabaseClient
+    .from("app_settings")
+    .update({ offline_message: msg })
+    .eq("id", 1);
+  showToast("Message Saved!", "success");
 }
