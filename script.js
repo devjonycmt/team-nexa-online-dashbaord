@@ -999,3 +999,22 @@ async function saveSettings() {
     .eq("id", 1);
   showToast("Message Saved!", "success");
 }
+
+function copyText(elementId) {
+  const textElement = document.getElementById(elementId);
+  if (!textElement) return;
+
+  const textToCopy = textElement.innerText;
+  navigator.clipboard
+    .writeText(textToCopy)
+    .then(() => {
+      if (typeof showToast === "function") {
+        showToast("Message copied to clipboard!", "success");
+      } else {
+        alert("Copied: " + textToCopy);
+      }
+    })
+    .catch((err) => {
+      console.error("Failed to copy: ", err);
+    });
+}
