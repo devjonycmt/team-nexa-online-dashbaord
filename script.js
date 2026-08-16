@@ -622,8 +622,8 @@ function closeModal() {
 
 function calculateMetaPay(count) {
   if (count >= 1000) return count * 2.0;
-  if (count >= 300) return count * 1.5;
-  if (count >= 100) return count * 1.2;
+  if (count >= 500) return count * 1.7;
+  if (count >= 100) return count * 1.5;
   return count * 1.0;
 }
 
